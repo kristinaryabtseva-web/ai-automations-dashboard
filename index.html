@@ -27,7 +27,7 @@
   .btn-pdf{padding:.5rem 1rem;border-radius:8px;border:2px solid var(--accent);background:transparent;color:var(--accent);font-weight:600;font-size:.83rem;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:.4rem}
   .btn-pdf:hover{background:var(--accent);color:#000}
   .btn-pdf.loading{opacity:.5;pointer-events:none}
-  .container{max-width:1440px;margin:0 auto;padding:1.5rem 2rem}
+  .container{max-width:1440px;margin:0 auto;padding:1rem 2rem}
   .container.wide{max-width:none}
 
   .data-source{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.1rem 1.5rem;margin-bottom:1.25rem;display:flex;gap:.75rem;align-items:center;flex-wrap:wrap}
@@ -67,6 +67,7 @@
   .kpi-green{border-color:var(--green);background:linear-gradient(135deg,var(--card) 0%,rgba(34,197,94,.1) 100%)}
   .kpi-note{font-size:.74rem;color:var(--text-dim);margin-top:.65rem}
   .kpi-star{color:var(--accent);font-weight:700}
+  .kpi-unit{font-size:1.1rem;font-weight:600;color:var(--text-dim);margin-left:.3rem}
   @media(max-width:1100px){.kpi-section{flex-direction:column}.kpi-side{min-width:unset;grid-template-columns:repeat(4,1fr)}}
 
   .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem}
@@ -145,6 +146,9 @@
     <p>Портфель AI-автоматизацій технічної команди</p>
   </div>
   <div class="header-right">
+    <span id="loadStatus" style="font-size:.78rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+    <button class="btn-load" style="background:var(--indigo);color:#fff" onclick="document.getElementById('fileInput').click()">📂 Обрати файл</button>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none">
     <button class="btn-pdf" id="btnPdf" onclick="exportSnapshot()" style="display:none">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Зберегти звіт
@@ -154,12 +158,6 @@
 </div>
 
 <div class="container">
-  <div class="data-source">
-    <button class="btn-load" style="background:var(--indigo);color:#fff" onclick="document.getElementById('fileInput').click()">📂 Обрати файл</button>
-    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none">
-    <span id="loadStatus" style="font-size:.8rem"></span>
-  </div>
-
   <div class="upload-zone" id="uploadZone"><p style="color:var(--text-dim)">📂 Перетягніть Excel сюди</p></div>
 
   <div class="dashboard-content" id="dashboardContent">
@@ -251,7 +249,7 @@ function getToolColor(t){if(!TOOL_COLORS[t]){TOOL_COLORS[t]=EXTRA[(cIdx+3)%EXTRA
 
 let DATA=[],filteredData=[],dateFilteredData=[],activeStatusFilter="all",activeDeptFilter="all",sortField=null,sortDir=1,charts={};
 let FTE_MONTHLY=33000,JIRA_BASE="";
-const APP_VERSION="1.8.0";
+const APP_VERSION="1.9.0";
 
 document.getElementById("footerYear").textContent=new Date().getFullYear()+" · v"+APP_VERSION;
 document.getElementById("lastUpdated").innerHTML="Версія<br><b>v"+APP_VERSION+"</b>";
@@ -308,7 +306,7 @@ function processArrayBuffer(buf,src){
         description:r["Опис"]||"",
         comment:cleanText(r["Коментар"]||"")};
     }).filter(d=>d.name);
-    setStatus(`✅ ${DATA.length} автоматизацій з ${src}`,"var(--green)");
+    setStatus(`✅ ${DATA.length} задач`,"var(--green)");
     document.getElementById("dashboardContent").classList.add("visible");
     document.getElementById("btnPdf").style.display="flex";
     filteredData=[...DATA];dateFilteredData=[...DATA];
@@ -322,6 +320,7 @@ function normStatus(s){const t=String(s).replace(/\s+/g," ").trim();if(/вико
 function parseDate(v){if(!v||v==="")return null;if(typeof v==="number"){const d=new Date((v-25569)*86400000);return d.toISOString().split("T")[0]}const s=String(v).trim();if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.substring(0,10);if(/^\d{2}\.\d{2}\.\d{4}/.test(s)){const p=s.split(".");return`${p[2]}-${p[1]}-${p[0]}`}return s}
 function fmtDate(d){if(!d)return"—";const p=d.split("-");return p.length===3?`${p[2]}.${p[1]}.${p[0]}`:d}
 function fmtMoney(n){return n.toLocaleString("uk-UA")+" грн"}
+function fmtMoneyHTML(n){return n.toLocaleString("uk-UA")+`<span class="kpi-unit">грн</span>`}
 
 /* ─── Filters ─── */
 function buildFilters(){
@@ -420,7 +419,7 @@ function renderKPIs(){
       </div>
       <div class="kpi-card kpi-green">
         <div class="kpi-label">Річний фін. ефект (Виконано)</div>
-        <div class="kpi-value" style="color:var(--green)">${fmtMoney(totalAnnual)}</div>
+        <div class="kpi-value" style="color:var(--green)">${fmtMoneyHTML(totalAnnual)}</div>
         <div class="kpi-sub">${effectSub}</div>
       </div>
       <div class="kpi-card kpi-green">
@@ -430,8 +429,8 @@ function renderKPIs(){
       </div>
       <div class="kpi-card kpi-green">
         <div class="kpi-label">Пряма економія (Виконано)</div>
-        <div class="kpi-value" style="color:var(--green)">${fmtMoney(totalUAHdirect)}</div>
-        <div class="kpi-sub">грн / рік (колонка «UAH рік»)</div>
+        <div class="kpi-value" style="color:var(--green)">${fmtMoneyHTML(totalUAHdirect)}</div>
+        <div class="kpi-sub">на рік (колонка «UAH рік»)</div>
       </div>
     </div>
     <div class="kpi-side">
@@ -451,9 +450,9 @@ function renderKPIs(){
         <div class="kpi-label">Процеси з AI-агентами <span class="kpi-star">*</span></div>
         <div class="kpi-value" style="color:var(--orange)">${totalProcesses}</div>
       </div>
+      <div class="kpi-note" style="grid-column:1/-1"><span class="kpi-star">*</span> враховано в стадіях DEV / TEST / PROD</div>
     </div>
-    </div>
-    <div class="kpi-note"><span class="kpi-star">*</span> враховано задачі в усіх стадіях: DEV / TEST / PROD</div>`;
+    </div>`;
 }
 
 /* ─── Charts (donuts + finance) ─── */
@@ -816,6 +815,7 @@ async function exportSnapshot(){
 .kpi-card-sm{background:var(--card);border-radius:12px;padding:.75rem 1rem;border:1px solid var(--border)}
 .kpi-note{font-size:.74rem;color:var(--text-dim);margin-bottom:1.25rem}
 .kpi-star{color:var(--accent);font-weight:700}
+.kpi-unit{font-size:1.1rem;font-weight:600;color:var(--text-dim);margin-left:.3rem}
 .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem}
 .chart-card{background:var(--card);border-radius:14px;padding:1.5rem;border:1px solid var(--border)}
 .chart-card h3{font-size:.92rem;font-weight:600;margin-bottom:.9rem}.chart-card.full{grid-column:1/-1}
