@@ -214,6 +214,7 @@
           <th onclick="sortTable('tool')">Інструмент <span class="sa">⇅</span></th>
           <th onclick="sortTable('status')">Статус <span class="sa">⇅</span></th>
           <th onclick="sortTable('fte')">FTE <span class="sa">⇅</span></th>
+          <th onclick="sortTable('uahYear')">UAH/рік <span class="sa">⇅</span></th>
           <th onclick="sortTable('annualEffect')">Ефект грн/рік <span class="sa">⇅</span></th>
           <th onclick="sortTable('developer')">Розробник <span class="sa">⇅</span></th>
           <th onclick="sortTable('createdDate')">Створено <span class="sa">⇅</span></th>
@@ -248,7 +249,7 @@ function getToolColor(t){if(!TOOL_COLORS[t]){TOOL_COLORS[t]=EXTRA[(cIdx+3)%EXTRA
 
 let DATA=[],filteredData=[],dateFilteredData=[],activeStatusFilter="all",activeDeptFilter="all",sortField=null,sortDir=1,charts={};
 let FTE_MONTHLY=33000,JIRA_BASE="";
-const APP_VERSION="1.5.0";
+const APP_VERSION="1.6.0";
 
 document.getElementById("footerYear").textContent=new Date().getFullYear()+" · v"+APP_VERSION;
 document.getElementById("lastUpdated").innerHTML="Версія<br><b>v"+APP_VERSION+"</b>";
@@ -286,14 +287,15 @@ function processArrayBuffer(buf,src){
     }
     DATA=rows.map((r,i)=>{
       const fte=parseNum(r["FTE"]);
-      const annualEffect=Math.round(fte*FTE_MONTHLY*12);
+      const uahYear=Math.round(parseNum(r["UAH рік"]||findCol(r,["uah"])));
+      const annualEffect=Math.round(fte*FTE_MONTHLY*12)+uahYear;
       return{id:i+1,
         jiraId:cleanText(r["Номер задачі (Jira)"]||r["Jira"]||""),
         name:cleanText(r["Назва автоматизації"]||r["Назва"]||""),
         department:cleanText(r["Підрозділ"]||""),
         tool:cleanText(r["Інструмент"]||""),
         status:normStatus(r["Статус"]||"В черзі"),
-        fte,annualEffect,
+        fte,uahYear,annualEffect,
         developer:cleanText(r["Розробник"]||""),
         photoPath:r["Фото шлях"]||r["Фото URL"]||"",
         createdDate:parseDate(r["Дата створення"]),
@@ -388,6 +390,11 @@ function renderKPIs(){
   const holdCount=filteredData.filter(d=>d.status==="Hold").length;
   const totalAnnual=done.reduce((s,d)=>s+d.annualEffect,0);
   const totalFTE=done.reduce((s,d)=>s+d.fte,0);
+  const totalFTEeffect=done.reduce((s,d)=>s+Math.round(d.fte*FTE_MONTHLY*12),0);
+  const totalUAHdirect=done.reduce((s,d)=>s+d.uahYear,0);
+  const effectSub=totalUAHdirect>0
+    ?`FTE-ефект ${fmtMoney(totalFTEeffect)} + прямі ${fmtMoney(totalUAHdirect)}`
+    :`${totalFTE.toFixed(2)} FTE × ${FTE_MONTHLY.toLocaleString()} грн × 12`;
   const depts=new Set(filteredData.map(d=>d.department)).size;
   const communityCount=filteredData.filter(d=>d.community).length;
 
@@ -411,7 +418,7 @@ function renderKPIs(){
       <div class="kpi-card kpi-green">
         <div class="kpi-label">Річний фін. ефект (Виконано)</div>
         <div class="kpi-value" style="color:var(--green)">${fmtMoney(totalAnnual)}</div>
-        <div class="kpi-sub">${totalFTE.toFixed(2)} FTE × ${FTE_MONTHLY.toLocaleString()} грн × 12</div>
+        <div class="kpi-sub">${effectSub}</div>
       </div>
       <div class="kpi-card kpi-green">
         <div class="kpi-label">FTE зекономлено (Виконано)</div>
@@ -653,6 +660,7 @@ function renderTable(){
       <td>${d.tool}</td>
       <td><span class="status-badge st-${s.cls}"><span class="dot"></span>${d.status}</span></td>
       <td>${d.fte?d.fte.toFixed(2):"—"}</td>
+      <td>${d.uahYear?fmtMoney(d.uahYear):"—"}</td>
       <td><div class="metric-bar"><span style="white-space:nowrap">${d.status==="Виконано"?fmtMoney(d.annualEffect):"—"}</span>${d.status==="Виконано"?`<div class="metric-bar-bg"><div class="metric-bar-fill" style="width:${(d.annualEffect/maxE*100)}%;background:var(--green)"></div></div>`:""}</div></td>
       <td>${d.developer||"—"}</td>
       <td>${fmtDate(d.createdDate)}</td>
@@ -674,8 +682,8 @@ function switchTab(name,btn){
 }
 
 /* ─── Resizable table columns ─── */
-const COLW_KEY="aimad_colWidths_v2";
-const DEFAULT_COLW=[90,440,170,120,120,75,150,130,110,115,260];
+const COLW_KEY="aimad_colWidths_v3";
+const DEFAULT_COLW=[90,440,170,120,120,75,130,150,130,110,115,260];
 function loadColW(){try{return JSON.parse(localStorage.getItem(COLW_KEY))||{}}catch(e){return{}}}
 function saveColW(o){try{localStorage.setItem(COLW_KEY,JSON.stringify(o))}catch(e){}}
 function makeColumnsResizable(){
