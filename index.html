@@ -45,6 +45,11 @@
   .filter-btn:hover{border-color:var(--accent);color:var(--text)}
   .filter-btn.active{background:var(--accent);border-color:var(--accent);color:#000;font-weight:600}
 
+  .tabs{display:flex;gap:.5rem;margin-bottom:1.25rem;border-bottom:1px solid var(--border)}
+  .tab-btn{padding:.6rem 1.2rem;border:none;background:transparent;color:var(--text-dim);cursor:pointer;font-size:.9rem;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s}
+  .tab-btn:hover{color:var(--text)}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+
   .kpi-section{display:flex;gap:1rem;margin-bottom:1.25rem;align-items:stretch}
   .kpi-main{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;flex:1}
   .kpi-side{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:.65rem;min-width:300px}
@@ -153,16 +158,12 @@
       </select>
     </div>
 
-    <div class="kpi-section" id="kpis"></div>
-
-    <!-- Donuts + Finance -->
-    <div class="charts-grid">
-      <div class="chart-card"><h3>📊 Статуси автоматизацій</h3><div class="chart-container h280"><canvas id="chartStatus"></canvas></div></div>
-      <div class="chart-card"><h3>🛠️ Інструменти</h3><div class="chart-container h280"><canvas id="chartTools"></canvas></div></div>
-      <div class="chart-card full"><h3>💰 Фінансовий ефект по підрозділах (грн/рік) — тільки Виконано</h3><div class="chart-container h280"><canvas id="chartFinance"></canvas></div></div>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('overview',this)">📊 Огляд</button>
+      <button class="tab-btn" onclick="switchTab('table',this)">📋 Усі автоматизації</button>
     </div>
 
-    <!-- Date filters — above roadmap, affects roadmap + table -->
+    <!-- Date filters — affect roadmap + table; always visible on both tabs -->
     <div class="date-filters">
       <label>📅 Період:</label>
       <label>Створення:</label>
@@ -174,9 +175,21 @@
       <button class="reset-btn" onclick="resetDateFilter()">Скинути</button>
     </div>
 
+    <div class="tab-panel" id="tabOverview">
+    <div class="kpi-section" id="kpis"></div>
+
+    <!-- Donuts + Finance -->
+    <div class="charts-grid">
+      <div class="chart-card"><h3>📊 Статуси автоматизацій</h3><div class="chart-container h280"><canvas id="chartStatus"></canvas></div></div>
+      <div class="chart-card"><h3>🛠️ Інструменти</h3><div class="chart-container h280"><canvas id="chartTools"></canvas></div></div>
+      <div class="chart-card full"><h3>💰 Фінансовий ефект по підрозділах (грн/рік) — тільки Виконано</h3><div class="chart-container h280"><canvas id="chartFinance"></canvas></div></div>
+    </div>
+
     <!-- Roadmap — standalone, uses date-filtered data -->
     <div class="chart-card full" style="margin-bottom:1.25rem"><h3>🔮 Роадмап автоматизацій</h3><div class="chart-container h400"><canvas id="chartBubble"></canvas></div></div>
+    </div><!-- /tabOverview -->
 
+    <div class="tab-panel" id="tabTable" style="display:none">
     <div class="table-card">
       <h3 id="tableTitle">📋 Усі автоматизації</h3>
       <div class="table-wrapper">
@@ -191,9 +204,11 @@
           <th onclick="sortTable('developer')">Розробник <span class="sa">⇅</span></th>
           <th onclick="sortTable('createdDate')">Створено <span class="sa">⇅</span></th>
           <th onclick="sortTable('doneDate')">Реалізовано <span class="sa">⇅</span></th>
+          <th onclick="sortTable('comment')">Коментар <span class="sa">⇅</span></th>
         </tr></thead><tbody id="tableBody"></tbody></table>
       </div>
     </div>
+    </div><!-- /tabTable -->
   </div>
 </div>
 
@@ -271,7 +286,8 @@ function processArrayBuffer(buf,src){
         community:/^(да|так|yes)/i.test(String(findCol(r,["спільнот"])||"").trim()),
         aiAgents:parseNum(findCol(r,["агент"],["процес"])),
         aiProcesses:parseNum(findCol(r,["процес"])),
-        description:r["Опис"]||""};
+        description:r["Опис"]||"",
+        comment:cleanText(r["Коментар"]||"")};
     }).filter(d=>d.name);
     setStatus(`✅ ${DATA.length} автоматизацій з ${src}`,"var(--green)");
     document.getElementById("dashboardContent").classList.add("visible");
@@ -626,10 +642,19 @@ function renderTable(){
       <td>${d.developer||"—"}</td>
       <td>${fmtDate(d.createdDate)}</td>
       <td>${fmtDate(d.doneDate)}</td>
+      <td style="color:var(--text-dim);font-size:.78rem;max-width:240px">${d.comment||"—"}</td>
     </tr>`}).join("");
 }
 
 function sortTable(f){if(sortField===f)sortDir*=-1;else{sortField=f;sortDir=1}renderTable()}
+
+/* ─── Tabs ─── */
+function switchTab(name,btn){
+  document.getElementById("tabOverview").style.display=name==="overview"?"block":"none";
+  document.getElementById("tabTable").style.display=name==="table"?"block":"none";
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+}
 
 /* ─── HTML Snapshot Export ─── */
 async function exportSnapshot(){
