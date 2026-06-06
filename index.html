@@ -249,7 +249,7 @@ function getToolColor(t){if(!TOOL_COLORS[t]){TOOL_COLORS[t]=EXTRA[(cIdx+3)%EXTRA
 
 let DATA=[],filteredData=[],dateFilteredData=[],activeStatusFilter="all",activeDeptFilter="all",sortField=null,sortDir=1,charts={};
 let FTE_MONTHLY=33000,JIRA_BASE="";
-const APP_VERSION="1.6.0";
+const APP_VERSION="1.7.0";
 
 document.getElementById("footerYear").textContent=new Date().getFullYear()+" · v"+APP_VERSION;
 document.getElementById("lastUpdated").innerHTML="Версія<br><b>v"+APP_VERSION+"</b>";
@@ -738,6 +738,31 @@ function resetColW(){
 }
 
 /* ─── HTML Snapshot Export ─── */
+/* Таблиця для звіту — тільки задачі зі статусом «Виконано», незалежно від фільтрів */
+function reportTableHTML(){
+  const rows=DATA.filter(d=>d.status==="Виконано");
+  const body=rows.map(d=>{
+    const s=STATUS_MAP[d.status]||STATUS_MAP["В черзі"];
+    const jira=d.jiraId?(JIRA_BASE?`<a class="jira-link" href="${JIRA_BASE}${d.jiraId}">${d.jiraId}</a>`:d.jiraId):"—";
+    return `<tr>
+      <td>${jira}</td>
+      <td><b>${d.name}</b>${d.description?`<br><span style="color:var(--text-dim);font-size:.73rem">${d.description}</span>`:""}</td>
+      <td>${d.department}</td>
+      <td>${d.tool}</td>
+      <td><span class="status-badge st-${s.cls}"><span class="dot"></span>${d.status}</span></td>
+      <td>${d.fte?d.fte.toFixed(2):"—"}</td>
+      <td>${d.uahYear?fmtMoney(d.uahYear):"—"}</td>
+      <td>${fmtMoney(d.annualEffect)}</td>
+      <td>${d.developer||"—"}</td>
+      <td>${fmtDate(d.createdDate)}</td>
+      <td>${fmtDate(d.doneDate)}</td>
+      <td>${d.comment||"—"}</td>
+    </tr>`;
+  }).join("");
+  return `<table><thead><tr>
+    <th>Jira</th><th>Назва</th><th>Підрозділ</th><th>Інструмент</th><th>Статус</th><th>FTE</th><th>UAH/рік</th><th>Ефект грн/рік</th><th>Розробник</th><th>Створено</th><th>Реалізовано</th><th>Коментар</th>
+  </tr></thead><tbody>${body}</tbody></table>`;
+}
 async function exportSnapshot(){
   const btn=document.getElementById("btnPdf");
   btn.classList.add("loading");btn.textContent="⏳ Генерація...";
@@ -749,7 +774,8 @@ async function exportSnapshot(){
       if(c&&c.getContext){try{chartImages[id]=c.toDataURL("image/png")}catch(e){}}
     });
     const kpiHTML=document.getElementById("kpis").innerHTML;
-    const tableHTML=document.querySelector(".table-card .table-wrapper").innerHTML;
+    const doneCount=DATA.filter(d=>d.status==="Виконано").length;
+    const tableHTML=reportTableHTML();
     const activeStatus=activeStatusFilter==="all"?"Усі статуси":activeStatusFilter;
     const activeDept=activeDeptFilter==="all"?"Усі підрозділи":activeDeptFilter;
     const now=new Date();
@@ -802,7 +828,7 @@ a.jira-link{color:#4a9eff;text-decoration:none;font-weight:500}
 <div class="header-text"><h1>AI автоматизації команди MAD team</h1><p>Портфель AI-автоматизацій технічної команди</p></div>
 <div class="header-right">Звіт згенеровано<br><b>${dateStr}</b></div></div>
 <div class="container">
-<div class="filter-info">Фільтри: <b>${activeStatus}</b> · <b>${activeDept}</b></div>
+<div class="filter-info">Огляд: <b>${activeStatus}</b> · <b>${activeDept}</b> · Таблиця: <b>тільки виконані</b></div>
 <div class="kpi-row">${kpiHTML}</div>
 <div class="charts-grid">
 <div class="chart-card"><h3>📊 Статуси автоматизацій</h3>${chartImages.chartStatus?`<img src="${chartImages.chartStatus}">`:'<p style="color:#94a3b8">Немає даних</p>'}</div>
@@ -810,7 +836,7 @@ a.jira-link{color:#4a9eff;text-decoration:none;font-weight:500}
 <div class="chart-card full"><h3>💰 Фінансовий ефект по підрозділах</h3>${chartImages.chartFinance?`<img src="${chartImages.chartFinance}">`:'<p style="color:#94a3b8">Немає даних</p>'}</div>
 <div class="chart-card full"><h3>🔮 Роадмап автоматизацій</h3>${chartImages.chartBubble?`<img src="${chartImages.chartBubble}">`:'<p style="color:#94a3b8">Немає даних</p>'}</div>
 </div>
-<div class="table-card"><h3>📋 Усі автоматизації</h3><div class="table-wrapper">${tableHTML}</div></div>
+<div class="table-card"><h3>📋 Виконані автоматизації (${doneCount})</h3><div class="table-wrapper">${tableHTML}</div></div>
 </div>
 <div class="footer">AI автоматизації MAD team · ${now.getFullYear()} · Звіт створено автоматично</div>
 </body></html>`;
