@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Automations — MAD team</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg:#0f172a;--card:#1e293b;--accent:#eab308;--accent2:#facc15;--accent-dim:rgba(234,179,8,.15);
+    --green:#22c55e;--yellow:#eab308;--orange:#f97316;--blue:#3b82f6;--cyan:#06b6d4;
+    --pink:#ec4899;--indigo:#6366f1;--purple:#a855f7;
+    --text:#f1f5f9;--text-dim:#94a3b8;--border:#334155;
+    --mad-yellow:#F5C518;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+  .header{background:linear-gradient(135deg,#1a1a1a 0%,#2d2d0a 50%,#1a1a1a 100%);padding:1.5rem 2.5rem;border-bottom:3px solid var(--mad-yellow);display:flex;align-items:center;gap:1.25rem;position:relative}
+  .header::after{content:'';position:absolute;bottom:-3px;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--mad-yellow),transparent)}
+  .mad-logo{width:56px;height:56px;border-radius:10px;flex-shrink:0;background:var(--mad-yellow);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#000;letter-spacing:-1px}
+  .header-text h1{font-size:1.5rem;font-weight:700;color:var(--mad-yellow)}
+  .header-text p{color:var(--text-dim);font-size:.88rem;margin-top:.15rem}
+  .header-right{margin-left:auto;display:flex;align-items:center;gap:1rem}
+  .last-updated{color:var(--text-dim);font-size:.8rem;text-align:right}
+  .btn-pdf{padding:.5rem 1rem;border-radius:8px;border:2px solid var(--accent);background:transparent;color:var(--accent);font-weight:600;font-size:.83rem;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:.4rem}
+  .btn-pdf:hover{background:var(--accent);color:#000}
+  .btn-pdf.loading{opacity:.5;pointer-events:none}
+  .container{max-width:1440px;margin:0 auto;padding:1.5rem 2rem}
+
+  .data-source{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.1rem 1.5rem;margin-bottom:1.25rem;display:flex;gap:.75rem;align-items:center;flex-wrap:wrap}
+  .btn-load{padding:.45rem 1rem;border-radius:8px;border:none;background:var(--accent);color:#000;font-weight:600;font-size:.83rem;cursor:pointer;transition:all .2s}
+  .btn-load:hover{background:var(--accent2)}
+
+  .upload-zone{border:2px dashed var(--border);border-radius:14px;padding:1.5rem;text-align:center;margin-bottom:1.25rem;transition:all .3s;cursor:pointer;position:relative;display:none}
+  .upload-zone.dragover{display:block;border-color:var(--accent);background:var(--accent-dim)}
+
+  .filters-row{display:flex;gap:.75rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap}
+  .filters-row label{font-size:.82rem;color:var(--text-dim);white-space:nowrap}
+  .filter-select{padding:.38rem .65rem;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.83rem;cursor:pointer;min-width:140px}
+  .filter-select:focus{outline:none;border-color:var(--accent)}
+
+  .filter-btn{padding:.35rem .8rem;border-radius:999px;border:1px solid var(--border);background:transparent;color:var(--text-dim);cursor:pointer;font-size:.8rem;transition:all .2s}
+  .filter-btn:hover{border-color:var(--accent);color:var(--text)}
+  .filter-btn.active{background:var(--accent);border-color:var(--accent);color:#000;font-weight:600}
+
+  .kpi-section{display:flex;gap:1rem;margin-bottom:1.25rem;align-items:stretch}
+  .kpi-main{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;flex:1}
+  .kpi-side{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:.65rem;min-width:300px}
+  .kpi-card{background:var(--card);border-radius:14px;padding:1.2rem 1.4rem;border:1px solid var(--border);transition:transform .2s,box-shadow .2s}
+  .kpi-card:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,0,0,.3)}
+  .kpi-card-sm{background:var(--card);border-radius:12px;padding:.75rem 1rem;border:1px solid var(--border);transition:transform .2s,box-shadow .2s}
+  .kpi-card-sm:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,0,0,.3)}
+  .kpi-card-sm .kpi-label{font-size:.68rem}
+  .kpi-card-sm .kpi-value{font-size:1.5rem}
+  .kpi-label{font-size:.76rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em}
+  .kpi-value{font-size:2.2rem;font-weight:700;margin-top:.1rem}
+  .kpi-big{font-size:2.8rem}
+  .kpi-sub{font-size:.8rem;color:var(--text-dim);margin-top:.1rem}
+  .kpi-green{border-color:var(--green);background:linear-gradient(135deg,var(--card) 0%,rgba(34,197,94,.1) 100%)}
+  @media(max-width:1100px){.kpi-section{flex-direction:column}.kpi-side{min-width:unset;grid-template-columns:repeat(4,1fr)}}
+
+  .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem}
+  .chart-card{background:var(--card);border-radius:14px;padding:1.5rem;border:1px solid var(--border)}
+  .chart-card h3{font-size:.92rem;font-weight:600;margin-bottom:.9rem;display:flex;align-items:center;gap:.5rem}
+  .chart-card.full{grid-column:1/-1}
+  .chart-container{position:relative;width:100%}
+  .chart-container.h280{height:280px}
+  .chart-container.h400{height:400px}
+
+  .date-filters{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1rem 1.5rem;margin-bottom:1.25rem;display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap}
+  .date-filters label{font-size:.82rem;color:var(--text-dim)}
+  .date-filters input[type="date"]{padding:.35rem .5rem;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.82rem}
+  .date-filters input[type="date"]:focus{outline:none;border-color:var(--accent)}
+  .date-filters .reset-btn{padding:.3rem .7rem;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text-dim);cursor:pointer;font-size:.78rem}
+  .date-filters .reset-btn:hover{border-color:var(--accent);color:var(--text)}
+
+  .table-card{background:var(--card);border-radius:14px;border:1px solid var(--border);overflow:hidden;margin-bottom:1.25rem}
+  .table-card h3{padding:1.1rem 1.5rem .7rem;font-size:.92rem;font-weight:600}
+  .table-wrapper{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:.83rem}
+  thead{background:rgba(234,179,8,.08)}
+  th{text-align:left;padding:.65rem .8rem;font-weight:600;color:var(--text-dim);font-size:.76rem;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;cursor:pointer;user-select:none}
+  th:hover{color:var(--accent)}
+  th .sa{margin-left:.2rem;font-size:.6rem}
+  td{padding:.65rem .8rem;border-top:1px solid var(--border)}
+  tr:hover td{background:rgba(234,179,8,.03)}
+
+  .status-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.18rem .6rem;border-radius:999px;font-size:.74rem;font-weight:500}
+  .status-badge .dot{width:7px;height:7px;border-radius:50%}
+  .st-done{background:rgba(34,197,94,.12);color:#22c55e} .st-done .dot{background:#22c55e}
+  .st-dev{background:rgba(59,130,246,.12);color:#3b82f6} .st-dev .dot{background:#3b82f6}
+  .st-test{background:rgba(234,179,8,.12);color:#eab308} .st-test .dot{background:#eab308}
+  .st-disc{background:rgba(168,85,247,.12);color:#a855f7} .st-disc .dot{background:#a855f7}
+  .st-queue{background:rgba(148,163,184,.12);color:#94a3b8} .st-queue .dot{background:#94a3b8}
+  .st-hold{background:rgba(249,115,22,.12);color:#f97316} .st-hold .dot{background:#f97316}
+
+  .metric-bar{display:flex;align-items:center;gap:.4rem}
+  .metric-bar-bg{flex:1;height:5px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden;min-width:45px}
+  .metric-bar-fill{height:100%;border-radius:999px}
+  a.jira-link{color:#4a9eff;text-decoration:none;font-weight:500} a.jira-link:hover{text-decoration:underline}
+
+  .footer{text-align:center;padding:1.2rem;color:var(--text-dim);font-size:.73rem;border-top:1px solid var(--border)}
+  .dashboard-content{display:none} .dashboard-content.visible{display:block}
+
+  @media(max-width:900px){.charts-grid{grid-template-columns:1fr}.kpi-main{grid-template-columns:1fr}}
+  @media(max-width:600px){.kpi-section{flex-direction:column}.kpi-side{grid-template-columns:repeat(2,1fr)}.container{padding:1rem}}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .kpi-card,.chart-card,.table-card{animation:fadeIn .4s ease both}
+
+  @media print{
+    body{background:#fff!important;color:#000!important}
+    .data-source,.upload-zone,.btn-pdf,.date-filters{display:none!important}
+    .header{background:#fff!important;border-color:#ccc!important}
+    .header-text h1{color:#000!important}
+    .kpi-card,.chart-card,.table-card{border-color:#ddd!important;background:#fff!important}
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="mad-logo"><span>MAD</span></div>
+  <div class="header-text">
+    <h1>AI автоматизації команди MAD team</h1>
+    <p>Портфель AI-автоматизацій технічної команди</p>
+  </div>
+  <div class="header-right">
+    <button class="btn-pdf" id="btnPdf" onclick="exportSnapshot()" style="display:none">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Зберегти звіт
+    </button>
+    <div class="last-updated" id="lastUpdated"></div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="data-source">
+    <button class="btn-load" style="background:var(--indigo);color:#fff" onclick="document.getElementById('fileInput').click()">📂 Обрати файл</button>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none">
+    <span id="loadStatus" style="font-size:.8rem"></span>
+  </div>
+
+  <div class="upload-zone" id="uploadZone"><p style="color:var(--text-dim)">📂 Перетягніть Excel сюди</p></div>
+
+  <div class="dashboard-content" id="dashboardContent">
+    <div class="filters-row" id="filtersRow">
+      <div id="statusFilters" style="display:flex;gap:.4rem;flex-wrap:wrap"></div>
+      <label style="margin-left:.75rem">Підрозділ:</label>
+      <select class="filter-select" id="deptFilter" onchange="applyFilter()">
+        <option value="all">Усі підрозділи</option>
+      </select>
+    </div>
+
+    <div class="kpi-section" id="kpis"></div>
+
+    <!-- Donuts + Finance -->
+    <div class="charts-grid">
+      <div class="chart-card"><h3>📊 Статуси автоматизацій</h3><div class="chart-container h280"><canvas id="chartStatus"></canvas></div></div>
+      <div class="chart-card"><h3>🛠️ Інструменти</h3><div class="chart-container h280"><canvas id="chartTools"></canvas></div></div>
+      <div class="chart-card full"><h3>💰 Фінансовий ефект по підрозділах (грн/рік) — тільки Виконано</h3><div class="chart-container h280"><canvas id="chartFinance"></canvas></div></div>
+    </div>
+
+    <!-- Date filters — above roadmap, affects roadmap + table -->
+    <div class="date-filters">
+      <label>📅 Період:</label>
+      <label>Створення:</label>
+      <input type="date" id="dfCreatedFrom" onchange="applyDateFilter()"> <span style="color:var(--text-dim);font-size:.8rem">—</span>
+      <input type="date" id="dfCreatedTo" onchange="applyDateFilter()">
+      <label style="margin-left:.75rem">Виконання:</label>
+      <input type="date" id="dfDoneFrom" onchange="applyDateFilter()"> <span style="color:var(--text-dim);font-size:.8rem">—</span>
+      <input type="date" id="dfDoneTo" onchange="applyDateFilter()">
+      <button class="reset-btn" onclick="resetDateFilter()">Скинути</button>
+    </div>
+
+    <!-- Roadmap — standalone, uses date-filtered data -->
+    <div class="chart-card full" style="margin-bottom:1.25rem"><h3>🔮 Роадмап автоматизацій</h3><div class="chart-container h400"><canvas id="chartBubble"></canvas></div></div>
+
+    <div class="table-card">
+      <h3 id="tableTitle">📋 Усі автоматизації</h3>
+      <div class="table-wrapper">
+        <table><thead><tr>
+          <th onclick="sortTable('jiraId')">Jira <span class="sa">⇅</span></th>
+          <th onclick="sortTable('name')">Назва <span class="sa">⇅</span></th>
+          <th onclick="sortTable('department')">Підрозділ <span class="sa">⇅</span></th>
+          <th onclick="sortTable('tool')">Інструмент <span class="sa">⇅</span></th>
+          <th onclick="sortTable('status')">Статус <span class="sa">⇅</span></th>
+          <th onclick="sortTable('fte')">FTE <span class="sa">⇅</span></th>
+          <th onclick="sortTable('annualEffect')">Ефект грн/рік <span class="sa">⇅</span></th>
+          <th onclick="sortTable('developer')">Розробник <span class="sa">⇅</span></th>
+          <th onclick="sortTable('createdDate')">Створено <span class="sa">⇅</span></th>
+          <th onclick="sortTable('doneDate')">Реалізовано <span class="sa">⇅</span></th>
+        </tr></thead><tbody id="tableBody"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">AI автоматизації MAD team · <span id="footerYear"></span></div>
+
+<script>
+const DEPT_COLORS={"Підтримка клієнтів":"#6366f1","Фінанси":"#22c55e","Юридичний відділ":"#f97316","HR":"#ec4899","Маркетинг":"#06b6d4","Продажі":"#eab308","Операції":"#8b5cf6","IT":"#3b82f6","R&D":"#ef4444","Логістика":"#14b8a6"};
+const TOOL_COLORS={"Claude API":"#6366f1","GPT-4 + Python":"#22c55e","RAG + Claude":"#ec4899","ML модель + GPT":"#06b6d4","ChatGPT":"#f97316","Copilot":"#eab308","Custom ML":"#ef4444"};
+const STATUS_MAP={
+  "Виконано":{color:"#22c55e",cls:"done",icon:"✅"},
+  "В розробці":{color:"#3b82f6",cls:"dev",icon:"🔧"},
+  "Тестування":{color:"#eab308",cls:"test",icon:"🧪"},
+  "Discovery":{color:"#a855f7",cls:"disc",icon:"🔍"},
+  "В черзі":{color:"#94a3b8",cls:"queue",icon:"⏳"},
+  "Hold":{color:"#f97316",cls:"hold",icon:"⏸️"}
+};
+const ACTIVE_STATUSES=["В розробці","Тестування"];
+const DEV_COLORS=["#6366f1","#22c55e","#f97316","#ec4899","#06b6d4","#eab308","#8b5cf6","#3b82f6","#ef4444","#14b8a6","#f43f5e","#a855f7"];
+const EXTRA=["#f43f5e","#a855f7","#84cc16","#0ea5e9","#d946ef","#facc15","#2dd4bf","#fb923c"];
+let cIdx=0;
+function getDeptColor(d){if(!DEPT_COLORS[d]){DEPT_COLORS[d]=EXTRA[cIdx%EXTRA.length];cIdx++;}return DEPT_COLORS[d];}
+function getToolColor(t){if(!TOOL_COLORS[t]){TOOL_COLORS[t]=EXTRA[(cIdx+3)%EXTRA.length];cIdx++;}return TOOL_COLORS[t];}
+
+let DATA=[],filteredData=[],dateFilteredData=[],activeStatusFilter="all",activeDeptFilter="all",sortField=null,sortDir=1,charts={};
+let FTE_MONTHLY=33000,JIRA_BASE="";
+
+document.getElementById("footerYear").textContent=new Date().getFullYear();
+document.getElementById("lastUpdated").innerHTML="Оновлено<br><b>"+new Date().toLocaleDateString("uk-UA")+"</b>";
+const fileInput=document.getElementById("fileInput");
+const uploadZone=document.getElementById("uploadZone");
+document.body.addEventListener("dragover",e=>{e.preventDefault();uploadZone.classList.add("dragover")});
+document.body.addEventListener("dragleave",e=>{if(!e.relatedTarget||e.relatedTarget===document.documentElement)uploadZone.classList.remove("dragover")});
+document.body.addEventListener("drop",e=>{e.preventDefault();uploadZone.classList.remove("dragover");const f=e.dataTransfer.files[0];if(f)processFile(f)});
+fileInput.addEventListener("change",e=>{const f=e.target.files[0];if(f)processFile(f)});
+
+function setStatus(m,c){document.getElementById("loadStatus").innerHTML=`<span style="color:${c||'var(--text-dim)'}">${m}</span>`}
+
+
+function processFile(f){const r=new FileReader();r.onload=e=>processArrayBuffer(e.target.result,f.name);r.readAsArrayBuffer(f)}
+
+function processArrayBuffer(buf,src){
+  try{
+    const wb=XLSX.read(buf,{type:"array"});
+    if(wb.SheetNames.includes("Довідник")){
+      const ref=XLSX.utils.sheet_to_json(wb.Sheets["Довідник"],{defval:""});
+      ref.forEach(r=>{
+        const p=r["Параметр"]||"",v=r["Значення"];
+        if(/FTE.*грос/i.test(p)&&v)FTE_MONTHLY=parseFloat(v)||33000;
+        if(/jira.*url/i.test(p)&&v)JIRA_BASE=String(v).trim();
+      });
+    }
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""});
+    /* Helper: find column value by keyword match */
+    function findCol(r,mustHave,mustNotHave){
+      for(const k of Object.keys(r)){
+        const kl=k.toLowerCase();
+        if(mustHave.every(w=>kl.includes(w))&&(!mustNotHave||!mustNotHave.some(w=>kl.includes(w))))return r[k];
+      }
+      return "";
+    }
+    DATA=rows.map((r,i)=>{
+      const fte=parseNum(r["FTE"]);
+      const annualEffect=Math.round(fte*FTE_MONTHLY*12);
+      return{id:i+1,
+        jiraId:cleanText(r["Номер задачі (Jira)"]||r["Jira"]||""),
+        name:cleanText(r["Назва автоматизації"]||r["Назва"]||""),
+        department:cleanText(r["Підрозділ"]||""),
+        tool:cleanText(r["Інструмент"]||""),
+        status:normStatus(r["Статус"]||"В черзі"),
+        fte,annualEffect,
+        developer:cleanText(r["Розробник"]||""),
+        photoPath:r["Фото шлях"]||r["Фото URL"]||"",
+        createdDate:parseDate(r["Дата створення"]),
+        doneDate:parseDate(r["Дата реалізації"]),
+        community:/^(да|так|yes)/i.test(String(findCol(r,["спільнот"])||"").trim()),
+        aiAgents:parseNum(findCol(r,["агент"],["процес"])),
+        aiProcesses:parseNum(findCol(r,["процес"])),
+        description:r["Опис"]||""};
+    }).filter(d=>d.name);
+    setStatus(`✅ ${DATA.length} автоматизацій з ${src}`,"var(--green)");
+    document.getElementById("dashboardContent").classList.add("visible");
+    document.getElementById("btnPdf").style.display="flex";
+    filteredData=[...DATA];dateFilteredData=[...DATA];
+    buildFilters();render();
+  }catch(e){setStatus("Помилка: "+e.message,"#ef4444")}
+}
+
+function parseNum(v){if(v===""||v==null)return 0;const n=parseFloat(String(v).replace(/[^0-9.,-]/g,"").replace(",","."));return isNaN(n)?0:n}
+function cleanText(v){return String(v==null?"":v).replace(/\s+/g," ").trim()}
+function normStatus(s){const t=String(s).replace(/\s+/g," ").trim();if(/виконано/i.test(t))return"Виконано";if(/розроб/i.test(t))return"В розробці";if(/тестув/i.test(t))return"Тестування";if(/discov/i.test(t))return"Discovery";if(/черз/i.test(t))return"В черзі";if(/холд|hold/i.test(t))return"Hold";return t}
+function parseDate(v){if(!v||v==="")return null;if(typeof v==="number"){const d=new Date((v-25569)*86400000);return d.toISOString().split("T")[0]}const s=String(v).trim();if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.substring(0,10);if(/^\d{2}\.\d{2}\.\d{4}/.test(s)){const p=s.split(".");return`${p[2]}-${p[1]}-${p[0]}`}return s}
+function fmtDate(d){if(!d)return"—";const p=d.split("-");return p.length===3?`${p[2]}.${p[1]}.${p[0]}`:d}
+function fmtMoney(n){return n.toLocaleString("uk-UA")+" грн"}
+
+/* ─── Filters ─── */
+function buildFilters(){
+  const depts=[...new Set(DATA.map(d=>d.department))].filter(Boolean).sort();
+  const KNOWN=["Виконано","В розробці","Тестування","Discovery","В черзі","Hold"];
+  const present=[...new Set(DATA.map(d=>d.status))].filter(Boolean);
+  const statuses=[...KNOWN.filter(s=>present.includes(s)),...present.filter(s=>!KNOWN.includes(s))];
+  let h=`<button class="filter-btn active" onclick="setStatusFilter('all',this)">Усі</button>`;
+  statuses.forEach(s=>{
+    const cnt=DATA.filter(d=>d.status===s).length;
+    h+=`<button class="filter-btn" onclick="setStatusFilter('${s}',this)">${s} (${cnt})</button>`;
+  });
+  document.getElementById("statusFilters").innerHTML=h;
+  const sel=document.getElementById("deptFilter");
+  sel.innerHTML=`<option value="all">Усі підрозділи (${depts.length})</option>`;
+  depts.forEach(d=>{
+    const cnt=DATA.filter(x=>x.department===d).length;
+    sel.innerHTML+=`<option value="${d}">${d} (${cnt})</option>`;
+  });
+}
+
+function setStatusFilter(v,btn){
+  document.querySelectorAll('#statusFilters .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  activeStatusFilter=v;
+  applyFilter();
+}
+
+function applyFilter(){
+  activeDeptFilter=document.getElementById("deptFilter").value;
+  filteredData=[...DATA];
+  if(activeStatusFilter!=="all")filteredData=filteredData.filter(d=>d.status===activeStatusFilter);
+  if(activeDeptFilter!=="all")filteredData=filteredData.filter(d=>d.department===activeDeptFilter);
+  applyDateFilter();
+  renderKPIs();renderCharts();
+}
+
+/* Date filter — affects roadmap + table */
+function applyDateFilter(){
+  const cf=document.getElementById("dfCreatedFrom").value;
+  const ct=document.getElementById("dfCreatedTo").value;
+  const df=document.getElementById("dfDoneFrom").value;
+  const dt=document.getElementById("dfDoneTo").value;
+  dateFilteredData=[...filteredData];
+  if(cf)dateFilteredData=dateFilteredData.filter(d=>d.createdDate&&d.createdDate>=cf);
+  if(ct)dateFilteredData=dateFilteredData.filter(d=>d.createdDate&&d.createdDate<=ct);
+  if(df)dateFilteredData=dateFilteredData.filter(d=>d.doneDate&&d.doneDate>=df);
+  if(dt)dateFilteredData=dateFilteredData.filter(d=>d.doneDate&&d.doneDate<=dt);
+  renderRoadmap();renderTable();
+}
+function resetDateFilter(){
+  ["dfCreatedFrom","dfCreatedTo","dfDoneFrom","dfDoneTo"].forEach(id=>document.getElementById(id).value="");
+  dateFilteredData=[...filteredData];
+  renderRoadmap();renderTable();
+}
+
+function render(){renderKPIs();renderCharts();renderRoadmap();renderTable()}
+
+/* ─── KPIs ─── */
+function renderKPIs(){
+  const total=filteredData.length;
+  const done=filteredData.filter(d=>d.status==="Виконано");
+  const doneCount=done.length;
+  const devCount=filteredData.filter(d=>d.status==="В розробці").length;
+  const testCount=filteredData.filter(d=>d.status==="Тестування").length;
+  const discCount=filteredData.filter(d=>d.status==="Discovery").length;
+  const queueCount=filteredData.filter(d=>d.status==="В черзі").length;
+  const holdCount=filteredData.filter(d=>d.status==="Hold").length;
+  const totalAnnual=done.reduce((s,d)=>s+d.annualEffect,0);
+  const totalFTE=done.reduce((s,d)=>s+d.fte,0);
+  const depts=new Set(filteredData.map(d=>d.department)).size;
+  const communityCount=filteredData.filter(d=>d.community).length;
+
+  let subParts=[];
+  if(devCount)subParts.push(`${devCount} в розробці`);
+  if(testCount)subParts.push(`${testCount} тестування`);
+  if(discCount)subParts.push(`${discCount} discovery`);
+  if(queueCount)subParts.push(`${queueCount} в черзі`);
+  if(holdCount)subParts.push(`${holdCount} hold`);
+
+  const totalAgents=filteredData.reduce((s,d)=>s+d.aiAgents,0);
+  const totalProcesses=filteredData.reduce((s,d)=>s+d.aiProcesses,0);
+
+  document.getElementById("kpis").innerHTML=`
+    <div class="kpi-main">
+      <div class="kpi-card kpi-green">
+        <div class="kpi-label">Готових автоматизацій</div>
+        <div class="kpi-value kpi-big" style="color:var(--green)">${doneCount}</div>
+        <div class="kpi-sub">з ${total} загалом${subParts.length?" · "+subParts.join(" · "):""}</div>
+      </div>
+      <div class="kpi-card kpi-green">
+        <div class="kpi-label">Річний фін. ефект (Виконано)</div>
+        <div class="kpi-value" style="color:var(--green)">${fmtMoney(totalAnnual)}</div>
+        <div class="kpi-sub">${totalFTE.toFixed(2)} FTE × ${FTE_MONTHLY.toLocaleString()} грн × 12</div>
+      </div>
+      <div class="kpi-card kpi-green">
+        <div class="kpi-label">FTE зекономлено (Виконано)</div>
+        <div class="kpi-value" style="color:var(--green)">${totalFTE.toFixed(2)}</div>
+        <div class="kpi-sub">${fmtMoney(Math.round(totalFTE*FTE_MONTHLY))} / міс</div>
+      </div>
+    </div>
+    <div class="kpi-side">
+      <div class="kpi-card-sm">
+        <div class="kpi-label">Підрозділів</div>
+        <div class="kpi-value" style="color:var(--pink)">${depts}</div>
+      </div>
+      <div class="kpi-card-sm">
+        <div class="kpi-label">Ініціативи Спільноти</div>
+        <div class="kpi-value" style="color:var(--purple)">${communityCount}</div>
+      </div>
+      <div class="kpi-card-sm">
+        <div class="kpi-label">AI-агентів, шт.</div>
+        <div class="kpi-value" style="color:var(--indigo)">${totalAgents}</div>
+      </div>
+      <div class="kpi-card-sm">
+        <div class="kpi-label">Процеси з AI-агентами</div>
+        <div class="kpi-value" style="color:var(--orange)">${totalProcesses}</div>
+      </div>
+    </div>`;
+}
+
+/* ─── Charts (donuts + finance) ─── */
+function renderCharts(){
+  ["status","tools","finance"].forEach(k=>{if(charts[k]){charts[k].destroy();delete charts[k]}});
+
+  const sc={};filteredData.forEach(d=>{sc[d.status]=(sc[d.status]||0)+1});
+  charts.status=new Chart(document.getElementById("chartStatus"),{type:"doughnut",
+    data:{labels:Object.keys(sc).map(k=>`${k} (${sc[k]})`),datasets:[{data:Object.values(sc),backgroundColor:Object.keys(sc).map(s=>STATUS_MAP[s]?.color||"#888"),borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:"#94a3b8",padding:14,font:{size:12}}}}}
+  });
+
+  const tc={};filteredData.forEach(d=>{tc[d.tool]=(tc[d.tool]||0)+1});
+  charts.tools=new Chart(document.getElementById("chartTools"),{type:"doughnut",
+    data:{labels:Object.keys(tc).map(k=>`${k} (${tc[k]})`),datasets:[{data:Object.values(tc),backgroundColor:Object.keys(tc).map(getToolColor),borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:"#94a3b8",padding:14}}}}
+  });
+
+  const done=filteredData.filter(d=>d.status==="Виконано");
+  const df={};done.forEach(d=>{df[d.department]=(df[d.department]||0)+d.annualEffect});
+  const sd=Object.entries(df).sort((a,b)=>b[1]-a[1]);
+  if(sd.length){
+    charts.finance=new Chart(document.getElementById("chartFinance"),{type:"bar",
+      data:{labels:sd.map(d=>d[0]),datasets:[{data:sd.map(d=>d[1]),backgroundColor:sd.map(d=>getDeptColor(d[0])),borderRadius:6,borderSkipped:false}]},
+      options:{responsive:true,maintainAspectRatio:false,indexAxis:"y",
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmtMoney(ctx.parsed.x)}}},
+        scales:{
+          x:{min:0,grid:{color:"rgba(255,255,255,.05)"},ticks:{color:"#94a3b8",callback:v=>(v/1000)+"к"}},
+          y:{grid:{display:false},ticks:{color:"#e2e8f0"}}
+        }
+      }
+    });
+  }
+}
+
+/* ─── Roadmap (uses dateFilteredData) ─── */
+function renderRoadmap(){
+  if(charts.bubble){charts.bubble.destroy();delete charts.bubble}
+  const ctx=document.getElementById("chartBubble").getContext("2d");
+  const doneItems=dateFilteredData.filter(d=>d.status==="Виконано"&&d.doneDate);
+  const activeItems=dateFilteredData.filter(d=>ACTIVE_STATUSES.includes(d.status));
+  const now=new Date();const nowTs=now.getTime();
+
+  if(!doneItems.length&&!activeItems.length)return;
+
+  const allRoadmap=[...doneItems,...activeItems];
+  const devs=[...new Set(allRoadmap.map(d=>d.developer))].filter(Boolean);
+  const devColorMap={};devs.forEach((d,i)=>{devColorMap[d]=DEV_COLORS[i%DEV_COLORS.length]});
+
+  // Compute "no effect" zone Y position
+  const maxEffect=Math.max(...allRoadmap.map(d=>d.annualEffect).filter(v=>v>0),50000);
+  const NO_EFFECT_Y=-(maxEffect*0.18);
+  const hasNoEffect=allRoadmap.some(d=>d.annualEffect===0);
+
+  const datasets={};
+
+  doneItems.forEach(d=>{
+    const dev=d.developer||"Невідомий";
+    if(!datasets[dev])datasets[dev]=[];
+    const dateVal=new Date(d.doneDate).getTime();
+    const yVal=d.annualEffect>0?d.annualEffect:NO_EFFECT_Y;
+    const eff=Math.max(d.annualEffect,0);
+    const r=d.annualEffect>0?Math.max(10,Math.min(35,Math.sqrt(eff/1000)*4)):12;
+    datasets[dev].push({x:dateVal,y:yVal,r,label:d.name,dev,photoPath:d.photoPath,status:d.status,isActive:false,fte:d.fte,noEffect:d.annualEffect===0});
+  });
+
+  activeItems.forEach(d=>{
+    const dev=d.developer||"Невідомий";
+    const key=dev+" (в роботі)";
+    if(!datasets[key])datasets[key]=[];
+    const yVal=d.annualEffect>0?d.annualEffect:NO_EFFECT_Y;
+    const eff=Math.max(d.annualEffect,0);
+    const r=d.annualEffect>0?Math.max(10,Math.min(30,Math.sqrt(eff/1000)*3.5)):12;
+    datasets[key].push({x:nowTs,y:yVal,r,label:d.name,dev,photoPath:d.photoPath,status:d.status,isActive:true,fte:d.fte,noEffect:d.annualEffect===0});
+  });
+
+  // Plugin: "no effect" zone background + label
+  const zonePlugin={
+    id:'noEffectZone',
+    beforeDatasetsDraw(chart){
+      if(!hasNoEffect)return;
+      const{ctx}=chart;
+      const yScale=chart.scales.y;
+      const yZero=yScale.getPixelForValue(0);
+      const yBottom=yScale.bottom;
+      if(yZero>=yBottom)return;
+      // Draw zone background
+      ctx.save();
+      ctx.fillStyle="rgba(148,163,184,0.06)";
+      ctx.fillRect(chart.chartArea.left,yZero,chart.chartArea.right-chart.chartArea.left,yBottom-yZero);
+      // Dashed separator at y=0
+      ctx.beginPath();ctx.moveTo(chart.chartArea.left,yZero);ctx.lineTo(chart.chartArea.right,yZero);
+      ctx.strokeStyle="rgba(148,163,184,0.3)";ctx.lineWidth=1;ctx.setLineDash([6,4]);ctx.stroke();
+      ctx.restore();
+    }
+  };
+
+  // Plugin: draw photos/initials/icons
+  const imgPlugin={
+    id:'roadmapImages',
+    afterDatasetsDraw(chart){
+      const{ctx}=chart;
+      chart.data.datasets.forEach((ds,di)=>{
+        const meta=chart.getDatasetMeta(di);
+        meta.data.forEach((el,i)=>{
+          const pt=ds.data[i];
+          const{x,y}=el;const r=el.options.radius||pt.r;
+          if(pt.isActive){
+            const icon=STATUS_MAP[pt.status]?.icon||"🔧";
+            ctx.save();ctx.font=`${Math.max(14,r)}px serif`;ctx.textAlign="center";ctx.textBaseline="middle";
+            ctx.fillText(icon,x,y);ctx.restore();
+            ctx.save();ctx.beginPath();ctx.arc(x,y,r+3,0,Math.PI*2);
+            ctx.strokeStyle=(STATUS_MAP[pt.status]?.color||"#3b82f6")+"88";
+            ctx.lineWidth=2;ctx.setLineDash([4,4]);ctx.stroke();ctx.restore();
+          } else if(pt.photoPath&&isUrl(pt.photoPath)&&pt._img&&pt._img.complete&&pt._img.naturalWidth>0){
+            ctx.save();ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.clip();
+            ctx.drawImage(pt._img,x-r,y-r,r*2,r*2);ctx.restore();
+            ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+            ctx.strokeStyle=devColorMap[pt.dev]||"#fff";ctx.lineWidth=3;ctx.stroke();
+          } else {
+            ctx.save();ctx.font=`bold ${Math.max(10,r*0.7)}px sans-serif`;ctx.textAlign="center";ctx.textBaseline="middle";
+            ctx.fillStyle="#fff";
+            const initials=pt.dev?pt.dev.split(" ").map(w=>w[0]).join("").substring(0,2).toUpperCase():"?";
+            ctx.fillText(initials,x,y);ctx.restore();
+          }
+        });
+      });
+    }
+  };
+
+  // Preload images
+  Object.values(datasets).flat().forEach(pt=>{
+    if(pt.photoPath&&!pt.isActive&&isUrl(pt.photoPath)){
+      const img=new Image();img.crossOrigin="anonymous";img.src=pt.photoPath;pt._img=img;
+    }
+  });
+
+  // Today line plugin
+  const todayPlugin={
+    id:'todayLine',
+    afterDraw(chart){
+      const xScale=chart.scales.x;
+      const xPos=xScale.getPixelForValue(nowTs);
+      if(xPos>=xScale.left&&xPos<=xScale.right){
+        const{ctx}=chart;
+        ctx.save();ctx.beginPath();ctx.moveTo(xPos,chart.chartArea.top);ctx.lineTo(xPos,chart.chartArea.bottom);
+        ctx.strokeStyle="rgba(234,179,8,.5)";ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.stroke();
+        ctx.font="11px sans-serif";ctx.fillStyle="rgba(234,179,8,.8)";ctx.textAlign="center";
+        ctx.fillText("Сьогодні",xPos,chart.chartArea.top-6);ctx.restore();
+      }
+    }
+  };
+
+  charts.bubble=new Chart(ctx,{type:"bubble",plugins:[zonePlugin,imgPlugin,todayPlugin],
+    data:{datasets:Object.entries(datasets).map(([dev,pts])=>({label:dev,data:pts,
+      backgroundColor:(devColorMap[pts[0]?.dev]||"#8b5cf6")+(pts[0]?.isActive?"44":"66"),
+      borderColor:pts[0]?.isActive?(STATUS_MAP[pts[0]?.status]?.color||"#3b82f6"):(devColorMap[pts[0]?.dev]||"#8b5cf6"),
+      borderWidth:2}))},
+    options:{responsive:true,maintainAspectRatio:false,
+      scales:{
+        x:{type:"linear",title:{display:true,text:"Дата",color:"#94a3b8"},grid:{color:"rgba(255,255,255,.05)"},
+          ticks:{color:"#94a3b8",callback:v=>{const d=new Date(v);return d.toLocaleDateString("uk-UA",{month:"short",year:"2-digit"})}}},
+        y:{
+          min:hasNoEffect?NO_EFFECT_Y*1.6:0,
+          title:{display:true,text:"Річний ефект (грн)",color:"#94a3b8"},
+          grid:{color:"rgba(255,255,255,.05)"},
+          ticks:{color:"#94a3b8",callback:function(v){
+            if(v<0){
+              // Show label only near the zone center
+              const zone=NO_EFFECT_Y;
+              if(Math.abs(v-zone)<Math.abs(zone*0.3))return"Ефект не розраховано";
+              return"";
+            }
+            return fmtMoney(v);
+          }}
+        }
+      },
+      plugins:{legend:{position:"bottom",labels:{color:"#94a3b8",padding:14}},
+        tooltip:{callbacks:{
+          title:ctx=>{const d=new Date(ctx[0].raw.x);return d.toLocaleDateString("uk-UA")},
+          label:ctx=>{const p=ctx.raw;return[
+            `${p.label}`,
+            p.noEffect?`Ефект: не розраховано`:`FTE: ${p.fte.toFixed(2)}`,
+            p.noEffect?"":`Ефект: ${fmtMoney(Math.max(p.y,0))}/рік`,
+            `Розробник: ${p.dev}`,
+            `Статус: ${p.status}`
+          ].filter(Boolean)}
+        }}
+      }
+    }
+  });
+}
+
+function isUrl(s){return/^https?:\/\//i.test(String(s).trim())}
+
+/* ─── Table (uses dateFilteredData) ─── */
+function renderTable(){
+  const titleEl=document.getElementById("tableTitle");
+  if(titleEl){
+    const cnt=dateFilteredData.length;
+    const filterLabel=activeStatusFilter==="all"?"Усі":"📌 "+activeStatusFilter;
+    titleEl.innerHTML=`📋 ${filterLabel} автоматизації <span style="font-weight:400;font-size:.78rem;color:var(--text-dim)">(${cnt})</span>`;
+  }
+  const maxE=Math.max(...DATA.map(d=>d.annualEffect),1);
+  let sorted=[...dateFilteredData];
+  if(sortField){sorted.sort((a,b)=>{let va=a[sortField],vb=b[sortField];if(va==null)return 1;if(vb==null)return-1;if(typeof va==="string")return va.localeCompare(vb)*sortDir;return(va-vb)*sortDir})}
+  document.getElementById("tableBody").innerHTML=sorted.map(d=>{
+    const s=STATUS_MAP[d.status]||STATUS_MAP["В черзі"];
+    const jiraLink=d.jiraId?(JIRA_BASE?`<a class="jira-link" href="${JIRA_BASE}${d.jiraId}" target="_blank">${d.jiraId}</a>`:d.jiraId):"—";
+    return`<tr>
+      <td>${jiraLink}</td>
+      <td><b>${d.name}</b><br><span style="color:var(--text-dim);font-size:.73rem">${d.description||""}</span></td>
+      <td><span style="color:${getDeptColor(d.department)}">${d.department}</span></td>
+      <td>${d.tool}</td>
+      <td><span class="status-badge st-${s.cls}"><span class="dot"></span>${d.status}</span></td>
+      <td>${d.fte?d.fte.toFixed(2):"—"}</td>
+      <td><div class="metric-bar"><span style="white-space:nowrap">${d.status==="Виконано"?fmtMoney(d.annualEffect):"—"}</span>${d.status==="Виконано"?`<div class="metric-bar-bg"><div class="metric-bar-fill" style="width:${(d.annualEffect/maxE*100)}%;background:var(--green)"></div></div>`:""}</div></td>
+      <td>${d.developer||"—"}</td>
+      <td>${fmtDate(d.createdDate)}</td>
+      <td>${fmtDate(d.doneDate)}</td>
+    </tr>`}).join("");
+}
+
+function sortTable(f){if(sortField===f)sortDir*=-1;else{sortField=f;sortDir=1}renderTable()}
+
+/* ─── HTML Snapshot Export ─── */
+async function exportSnapshot(){
+  const btn=document.getElementById("btnPdf");
+  btn.classList.add("loading");btn.textContent="⏳ Генерація...";
+  try{
+    await new Promise(r=>setTimeout(r,200));
+    const chartImages={};
+    ["chartStatus","chartTools","chartFinance","chartBubble"].forEach(id=>{
+      const c=document.getElementById(id);
+      if(c&&c.getContext){try{chartImages[id]=c.toDataURL("image/png")}catch(e){}}
+    });
+    const kpiHTML=document.getElementById("kpis").innerHTML;
+    const tableHTML=document.querySelector(".table-card .table-wrapper").innerHTML;
+    const activeStatus=activeStatusFilter==="all"?"Усі статуси":activeStatusFilter;
+    const activeDept=activeDeptFilter==="all"?"Усі підрозділи":activeDeptFilter;
+    const now=new Date();
+    const dateStr=now.toLocaleDateString("uk-UA",{day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"});
+    const ts=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0")+"_"+String(now.getHours()).padStart(2,"0")+"-"+String(now.getMinutes()).padStart(2,"0");
+
+    const html=`<!DOCTYPE html>
+<html lang="uk"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>MAD AI Report — ${dateStr}</title>
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--accent:#eab308;--green:#22c55e;--yellow:#eab308;--orange:#f97316;--blue:#3b82f6;--cyan:#06b6d4;--pink:#ec4899;--indigo:#6366f1;--purple:#a855f7;--text:#f1f5f9;--text-dim:#94a3b8;--border:#334155;--mad-yellow:#F5C518}
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.header{background:linear-gradient(135deg,#1a1a1a 0%,#2d2d0a 50%,#1a1a1a 100%);padding:1.5rem 2.5rem;border-bottom:3px solid var(--mad-yellow);display:flex;align-items:center;gap:1.25rem}
+.mad-logo{width:56px;height:56px;border-radius:10px;background:var(--mad-yellow);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#000}
+.header-text h1{font-size:1.5rem;font-weight:700;color:var(--mad-yellow)}.header-text p{color:var(--text-dim);font-size:.88rem}
+.header-right{margin-left:auto;color:var(--text-dim);font-size:.8rem;text-align:right}
+.container{max-width:1440px;margin:0 auto;padding:1.5rem 2rem}
+.filter-info{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.7rem 1.2rem;margin-bottom:1rem;font-size:.82rem;color:var(--text-dim)}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-bottom:1.25rem}
+.kpi-card{background:var(--card);border-radius:14px;padding:1.2rem 1.4rem;border:1px solid var(--border)}
+.kpi-label{font-size:.76rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em}
+.kpi-value{font-size:2.2rem;font-weight:700;margin-top:.1rem}.kpi-big{font-size:2.8rem}
+.kpi-sub{font-size:.8rem;color:var(--text-dim);margin-top:.1rem}
+.kpi-green{border-color:var(--green);background:linear-gradient(135deg,var(--card) 0%,rgba(34,197,94,.1) 100%)}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.25rem}
+.chart-card{background:var(--card);border-radius:14px;padding:1.5rem;border:1px solid var(--border)}
+.chart-card h3{font-size:.92rem;font-weight:600;margin-bottom:.9rem}.chart-card.full{grid-column:1/-1}
+.chart-card img{width:100%;height:auto;border-radius:8px}
+.table-card{background:var(--card);border-radius:14px;border:1px solid var(--border);overflow:hidden;margin-bottom:1.25rem}
+.table-card h3{padding:1.1rem 1.5rem .7rem;font-size:.92rem;font-weight:600}.table-wrapper{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.83rem}thead{background:rgba(234,179,8,.08)}
+th{text-align:left;padding:.65rem .8rem;font-weight:600;color:var(--text-dim);font-size:.76rem;text-transform:uppercase}
+td{padding:.65rem .8rem;border-top:1px solid var(--border)}
+.status-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.18rem .6rem;border-radius:999px;font-size:.74rem;font-weight:500}
+.status-badge .dot{width:7px;height:7px;border-radius:50%}
+.st-done{background:rgba(34,197,94,.12);color:#22c55e}.st-done .dot{background:#22c55e}
+.st-dev{background:rgba(59,130,246,.12);color:#3b82f6}.st-dev .dot{background:#3b82f6}
+.st-test{background:rgba(234,179,8,.12);color:#eab308}.st-test .dot{background:#eab308}
+.st-disc{background:rgba(168,85,247,.12);color:#a855f7}.st-disc .dot{background:#a855f7}
+.st-queue{background:rgba(148,163,184,.12);color:#94a3b8}.st-queue .dot{background:#94a3b8}
+.metric-bar{display:flex;align-items:center;gap:.4rem}
+.metric-bar-bg{flex:1;height:5px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden;min-width:45px}
+.metric-bar-fill{height:100%;border-radius:999px}
+a.jira-link{color:#4a9eff;text-decoration:none;font-weight:500}
+.footer{text-align:center;padding:1.2rem;color:var(--text-dim);font-size:.73rem;border-top:1px solid var(--border)}
+@media(max-width:900px){.charts-grid{grid-template-columns:1fr}}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head><body>
+<div class="header"><div class="mad-logo"><span>MAD</span></div>
+<div class="header-text"><h1>AI автоматизації команди MAD team</h1><p>Портфель AI-автоматизацій технічної команди</p></div>
+<div class="header-right">Звіт згенеровано<br><b>${dateStr}</b></div></div>
+<div class="container">
+<div class="filter-info">Фільтри: <b>${activeStatus}</b> · <b>${activeDept}</b></div>
+<div class="kpi-row">${kpiHTML}</div>
+<div class="charts-grid">
+<div class="chart-card"><h3>📊 Статуси автоматизацій</h3>${chartImages.chartStatus?`<img src="${chartImages.chartStatus}">`:'<p style="color:#94a3b8">Немає даних</p>'}</div>
+<div class="chart-card"><h3>🛠️ Інструменти</h3>${chartImages.chartTools?`<img src="${chartImages.chartTools}">`:'<p style="color:#94a3b8">Немає даних</p>'}</div>
+<div class="chart-card full"><h3>💰 Фінансовий ефект по підрозділах</h3>${chartImages.chartFinance?`<img src="${chartImages.chartFinance}">`:'<p style="color:#94a3b8">Немає даних</p>'}</div>
+<div class="chart-card full"><h3>🔮 Роадмап автоматизацій</h3>${chartImages.chartBubble?`<img src="${chartImages.chartBubble}">`:'<p style="color:#94a3b8">Немає даних</p>'}</div>
+</div>
+<div class="table-card"><h3>📋 Усі автоматизації</h3><div class="table-wrapper">${tableHTML}</div></div>
+</div>
+<div class="footer">AI автоматизації MAD team · ${now.getFullYear()} · Звіт створено автоматично</div>
+</body></html>`;
+
+    const blob=new Blob([html],{type:"text/html;charset=utf-8"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download=`MAD_AI_Report_${ts}.html`;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  }catch(e){alert("Помилка експорту: "+e.message)}
+  btn.classList.remove("loading");
+  btn.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Зберегти звіт`;
+}
+</script>
+</body>
+</html>
