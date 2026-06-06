@@ -239,9 +239,10 @@ function getToolColor(t){if(!TOOL_COLORS[t]){TOOL_COLORS[t]=EXTRA[(cIdx+3)%EXTRA
 
 let DATA=[],filteredData=[],dateFilteredData=[],activeStatusFilter="all",activeDeptFilter="all",sortField=null,sortDir=1,charts={};
 let FTE_MONTHLY=33000,JIRA_BASE="";
+const APP_VERSION="1.3.0";
 
-document.getElementById("footerYear").textContent=new Date().getFullYear();
-document.getElementById("lastUpdated").innerHTML="Оновлено<br><b>"+new Date().toLocaleDateString("uk-UA")+"</b>";
+document.getElementById("footerYear").textContent=new Date().getFullYear()+" · v"+APP_VERSION;
+document.getElementById("lastUpdated").innerHTML="Версія<br><b>v"+APP_VERSION+"</b>";
 const fileInput=document.getElementById("fileInput");
 const uploadZone=document.getElementById("uploadZone");
 document.body.addEventListener("dragover",e=>{e.preventDefault();uploadZone.classList.add("dragover")});
